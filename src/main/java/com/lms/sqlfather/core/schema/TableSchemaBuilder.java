@@ -57,7 +57,8 @@ public class TableSchemaBuilder {
 
     /**
      * 智能构建
-     *
+     *首先根据  “,”或者“.”去分割content（content就是字段信息，如a,b,c,x等）
+     * 然后去数据库查找名称或者字段名字（名称是指字段的中文名称，字段名称是字母），然后去遍历拆分的content，如果说名称和字段名称都找不到就添加默认的字段信息
      * @param content
      * @return
      */
@@ -100,7 +101,11 @@ public class TableSchemaBuilder {
 
     /**
      * 根据建表 SQL 构建
-     *
+     *使用druid提供的sql解析器MySqlCreateTableParser去解析sql，可以从SQLCreateTableStatement对象中获取
+     * 表名，数据库名，表注释
+     * SQLTableElement（SQLCreateTableStatement提供的getTableElementList）可以获取字段的列表信息
+     * 字段信息类要判断两种情况，一种是一般字段类SQLColumnDefinition，另一种是SQLPrimaryKey主键
+     * 最后封装结果集，返回schema
      * @param sql 建表 SQL
      * @return 生成的 TableSchema
      */
