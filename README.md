@@ -1,5 +1,6 @@
 # lms2000-sql-father
 sql生成工具，轻松生成测试数据
+项目地址：http://123.249.23.88:8080
 # SQL-father项目模块大致介绍
 
 ![](https://service-edu-2000.oss-cn-hangzhou.aliyuncs.com/pic_go_areasql-father.png)
