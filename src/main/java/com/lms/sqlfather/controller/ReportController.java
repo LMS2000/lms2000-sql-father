@@ -2,11 +2,10 @@ package com.lms.sqlfather.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.lms.contants.HttpCode;
+import com.lms.result.EnableResponseAdvice;
 import com.lms.sqlfather.annotation.AuthCheck;
-import com.lms.sqlfather.common.BaseResponse;
 import com.lms.sqlfather.common.DeleteRequest;
-import com.lms.sqlfather.common.ErrorCode;
-import com.lms.sqlfather.common.ResultUtils;
 import com.lms.sqlfather.constant.CommonConstant;
 import com.lms.sqlfather.exception.BusinessException;
 import com.lms.sqlfather.model.dto.ReportAddRequest;
@@ -25,10 +24,12 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.constraints.Positive;
 import java.util.List;
 
 @RestController
 @RequestMapping("/report")
+@EnableResponseAdvice
 public class ReportController {
 
 
@@ -51,27 +52,21 @@ public class ReportController {
      * @return
      */
     @PostMapping("/add")
-    public BaseResponse<Long> addReport(@RequestBody ReportAddRequest reportAddRequest, HttpServletRequest request) {
-        if (reportAddRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Long addReport(@RequestBody ReportAddRequest reportAddRequest, HttpServletRequest request) {
+        BusinessException.throwIf(reportAddRequest == null);
         Report report = new Report();
         BeanUtils.copyProperties(reportAddRequest, report);
         reportService.validReport(report, true);
         User loginUser = userService.getLoginUser(request);
         Dict dict = dictService.getById(report.getReportedId());
-        if (dict == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "举报对象不存在");
-        }
+        BusinessException.throwIf(dict == null);
         report.setReportedUserId(dict.getUserId());
         report.setUserId(loginUser.getId());
         report.setStatus(ReportStatusEnum.DEFAULT.getValue());
         boolean result = reportService.save(report);
-        if (!result) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR);
-        }
-        long newReportId = report.getId();
-        return ResultUtils.success(newReportId);
+        BusinessException.throwIf(!result, HttpCode.OPERATION_ERROR);
+        return report.getId();
+
     }
 
     /**
@@ -82,23 +77,18 @@ public class ReportController {
      * @return
      */
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteReport(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
-        if (deleteRequest == null || deleteRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Boolean deleteReport(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+
+        BusinessException.throwIf(deleteRequest == null || deleteRequest.getId() <= 0);
         User user = userService.getLoginUser(request);
         long id = deleteRequest.getId();
         // 判断是否存在
         Report oldReport = reportService.getById(id);
-        if (oldReport == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
+        BusinessException.throwIf(oldReport == null,HttpCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可删除
-        if (!oldReport.getUserId().equals(user.getId()) && !userService.isAdmin(request)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-        boolean b = reportService.removeById(id);
-        return ResultUtils.success(b);
+        BusinessException.throwIf(!oldReport.getUserId().equals(user.getId()) && !userService.isAdmin(request));
+        return reportService.removeById(id);
+
     }
 
     /**
@@ -109,21 +99,18 @@ public class ReportController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = "admin")
-    public BaseResponse<Boolean> updateReport(@RequestBody ReportUpdateRequest reportUpdateRequest) {
-        if (reportUpdateRequest == null || reportUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Boolean updateReport(@RequestBody ReportUpdateRequest reportUpdateRequest) {
+
+        BusinessException.throwIf(reportUpdateRequest == null || reportUpdateRequest.getId() <= 0);
         Report report = new Report();
         BeanUtils.copyProperties(reportUpdateRequest, report);
         reportService.validReport(report, false);
         long id = reportUpdateRequest.getId();
         // 判断是否存在
         Report oldReport = reportService.getById(id);
-        if (oldReport == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
-        boolean result = reportService.updateById(report);
-        return ResultUtils.success(result);
+        BusinessException.throwIf(oldReport == null,HttpCode.NOT_FOUND_ERROR);
+        return reportService.updateById(report);
+
     }
 
     /**
@@ -133,12 +120,8 @@ public class ReportController {
      * @return
      */
     @GetMapping("/get")
-    public BaseResponse<Report> getReportById(long id) {
-        if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Report report = reportService.getById(id);
-        return ResultUtils.success(report);
+    public Report getReportById(@Positive(message = "id不合法") Long id) {
+        return reportService.getById(id);
     }
 
     /**
@@ -149,14 +132,14 @@ public class ReportController {
      */
     @AuthCheck(mustRole = "admin")
     @GetMapping("/list")
-    public BaseResponse<List<Report>> listReport(ReportQueryRequest reportQueryRequest) {
+    public List<Report> listReport(ReportQueryRequest reportQueryRequest) {
         Report reportQuery = new Report();
         if (reportQueryRequest != null) {
             BeanUtils.copyProperties(reportQueryRequest, reportQuery);
         }
         QueryWrapper<Report> queryWrapper = new QueryWrapper<>(reportQuery);
-        List<Report> reportList = reportService.list(queryWrapper);
-        return ResultUtils.success(reportList);
+        return reportService.list(queryWrapper);
+
     }
 
     /**
@@ -166,10 +149,9 @@ public class ReportController {
      * @return
      */
     @GetMapping("/list/page")
-    public BaseResponse<Page<Report>> listReportByPage(ReportQueryRequest reportQueryRequest) {
-        if (reportQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Page<Report> listReportByPage(ReportQueryRequest reportQueryRequest) {
+
+        BusinessException.throwIf(reportQueryRequest == null);
         Report reportQuery = new Report();
         BeanUtils.copyProperties(reportQueryRequest, reportQuery);
         long current = reportQueryRequest.getCurrent();
@@ -180,15 +162,13 @@ public class ReportController {
         // content 需支持模糊搜索
         reportQuery.setContent(null);
         // 限制爬虫
-        if (size > 50) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(size>50);
         QueryWrapper<Report> queryWrapper = new QueryWrapper<>(reportQuery);
         queryWrapper.like(StringUtils.isNotBlank(content), "content", content);
         queryWrapper.orderBy(StringUtils.isNotBlank(sortField), sortOrder.equals(CommonConstant.SORT_ORDER_ASC),
                 sortField);
-        Page<Report> reportPage = reportService.page(new Page<>(current, size), queryWrapper);
-        return ResultUtils.success(reportPage);
+        return reportService.page(new Page<>(current, size), queryWrapper);
+
     }
 
 

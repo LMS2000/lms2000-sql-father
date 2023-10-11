@@ -22,7 +22,6 @@ import java.util.Optional;
 /**
  * Java 代码生成器
  *
- * @author https://github.com/liyupi
  */
 @Component
 @Slf4j

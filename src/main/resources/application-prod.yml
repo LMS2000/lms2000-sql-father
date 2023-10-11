@@ -2,9 +2,9 @@ spring:
   # 数据库配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/sqlfather
+    url: jdbc:mysql://192.168.134.188:3306/sqlfather
     username: root
-    password: 123456
+    password: c2412902
 mybatis-plus:
   configuration:
     # 生产环境关闭日志

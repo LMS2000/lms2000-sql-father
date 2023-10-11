@@ -10,7 +10,6 @@ import java.util.Map;
 /**
  * 数据 JSON 生成器
  *
- * @author https://github.com/liyupi
  */
 @Slf4j
 public class JsonBuilder {

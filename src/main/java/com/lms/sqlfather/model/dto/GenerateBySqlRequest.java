@@ -7,7 +7,6 @@ import java.io.Serializable;
 /**
  * 根据 SQL 生成请求体
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class GenerateBySqlRequest implements Serializable {

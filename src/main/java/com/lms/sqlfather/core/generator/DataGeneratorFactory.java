@@ -1,9 +1,8 @@
 package com.lms.sqlfather.core.generator;
 
-import com.lms.sqlfather.core.model.enums.MockParamsRandomTypeEnum;
 import com.lms.sqlfather.core.model.enums.MockTypeEnum;
-import org.apache.commons.collections4.Put;
-import org.omg.CORBA.DATA_CONVERSION;
+
+
 
 import java.util.HashMap;
 import java.util.Map;

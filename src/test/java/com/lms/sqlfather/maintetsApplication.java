@@ -13,6 +13,7 @@ public class maintetsApplication {
     UserService userService;
     @Test
     public void test(){
-        userService.userRegister("wangwu","wangyu11","12345678","12345678","admin");
+        userService.userRegister("zhangsan22","zhangsan12333","12345678","12345678","xxx@163.com","user");
+
     }
 }

@@ -2,13 +2,11 @@ package com.lms.sqlfather.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.google.gson.Gson;
+import com.lms.contants.HttpCode;
+import com.lms.result.EnableResponseAdvice;
 import com.lms.sqlfather.annotation.AuthCheck;
-import com.lms.sqlfather.common.BaseResponse;
 import com.lms.sqlfather.common.DeleteRequest;
-import com.lms.sqlfather.common.ErrorCode;
-import com.lms.sqlfather.common.ResultUtils;
 import com.lms.sqlfather.constant.CommonConstant;
 import com.lms.sqlfather.core.builder.SqlBuilder;
 import com.lms.sqlfather.core.schema.TableSchema;
@@ -22,19 +20,20 @@ import com.lms.sqlfather.model.enums.ReviewStatusEnum;
 import com.lms.sqlfather.service.TableInfoService;
 import com.lms.sqlfather.service.UserService;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.util.PropertySource;
 import org.springframework.beans.BeanUtils;
-import org.springframework.context.annotation.Bean;
+
 import org.springframework.web.bind.annotation.*;
-import sun.awt.IconInfo;
+
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.constraints.Positive;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/table_info")
+@EnableResponseAdvice
 public class TableInfoController {
 
     @Resource
@@ -46,9 +45,10 @@ public class TableInfoController {
     private final static Gson GSON = new Gson();
 
     @PostMapping("/add")
-    public BaseResponse<Long> add(@RequestBody TableInfoAddRequest tableInfoAddRequest,
+    public Long add(@RequestBody TableInfoAddRequest tableInfoAddRequest,
                                   HttpServletRequest request) {
-        if (tableInfoAddRequest == null) throw new BusinessException(ErrorCode.PARAMS_ERROR);
+
+       BusinessException.throwIf(tableInfoAddRequest == null);
         TableInfo tableInfo = new TableInfo();
         BeanUtils.copyProperties(tableInfoAddRequest, tableInfo);
 
@@ -56,30 +56,23 @@ public class TableInfoController {
         User loginUser = userService.getLoginUser(request);
         tableInfo.setUserId(loginUser.getId());
         boolean result = tableInfoService.save(tableInfo);
-        if (!result) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR);
-        }
-        return ResultUtils.success(tableInfo.getId());
+        BusinessException.throwIf(!result, HttpCode.OPERATION_ERROR);
+        return tableInfo.getId();
     }
 
     @PostMapping("/delete")
-    public BaseResponse<Boolean> delete(@RequestBody DeleteRequest deleteRequest
+    public Boolean delete(@RequestBody DeleteRequest deleteRequest
             , HttpServletRequest request) {
-        if (deleteRequest == null || deleteRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        TableInfo byId = tableInfoService.getById(deleteRequest.getId());
 
-        if (byId == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "找不到该条记录");
-        }
+        BusinessException.throwIf(deleteRequest == null || deleteRequest.getId() <= 0);
+        TableInfo byId = tableInfoService.getById(deleteRequest.getId());
+        BusinessException.throwIf(byId == null);
         User loginUser = userService.getLoginUser(request);
 
-        if (!loginUser.getId().equals(byId.getUserId()) && !userService.isAdmin(request)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-        boolean result = tableInfoService.removeById(byId.getId());
-        return ResultUtils.success(result);
+        BusinessException.throwIf(!loginUser.getId().equals(byId.getUserId()) && !userService.isAdmin(request),
+                HttpCode.NO_AUTH_ERROR);
+      return tableInfoService.removeById(byId.getId());
+
     }
 
     /**
@@ -91,18 +84,16 @@ public class TableInfoController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = "admin")
-    public BaseResponse<Boolean> update(@RequestBody TableInfoUpdateRequest tableInfoUpdateRequest
+    public Boolean update(@RequestBody TableInfoUpdateRequest tableInfoUpdateRequest
             , HttpServletRequest request) {
-        if (tableInfoUpdateRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(tableInfoUpdateRequest == null);
         TableInfo tableInfo = new TableInfo();
         BeanUtils.copyProperties(tableInfoUpdateRequest, tableInfo);
         tableInfoService.validAndHandleTableInfo(tableInfo, false);
         TableInfo byId = tableInfoService.getById(tableInfo.getId());
-        if (byId == null) throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        boolean result = tableInfoService.updateById(tableInfo);
-        return ResultUtils.success(result);
+        BusinessException.throwIf(byId == null,HttpCode.NOT_FOUND_ERROR);
+       return tableInfoService.updateById(tableInfo);
+
     }
 
     /**
@@ -112,12 +103,10 @@ public class TableInfoController {
      * @return
      */
     @GetMapping("/get")
-    public BaseResponse<TableInfo> getTableInfoById(long id) {
-        if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        TableInfo tableInfo = tableInfoService.getById(id);
-        return ResultUtils.success(tableInfo);
+    public TableInfo getTableInfoById(@Positive(message = "id不合法") Long id) {
+
+       return tableInfoService.getById(id);
+
     }
 
     /**
@@ -128,9 +117,9 @@ public class TableInfoController {
      */
     @AuthCheck(mustRole = "admin")
     @GetMapping("/list")
-    public BaseResponse<List<TableInfo>> listTableInfo(TableInfoQueryRequest tableInfoQueryRequest) {
-        List<TableInfo> tableInfoList = tableInfoService.list(getQueryWrapper(tableInfoQueryRequest));
-        return ResultUtils.success(tableInfoList);
+    public List<TableInfo> listTableInfo(TableInfoQueryRequest tableInfoQueryRequest) {
+       return tableInfoService.list(getQueryWrapper(tableInfoQueryRequest));
+
     }
 
     /**
@@ -141,17 +130,14 @@ public class TableInfoController {
      * @return
      */
     @GetMapping("/list/page")
-    public BaseResponse<Page<TableInfo>> listTableInfoByPage(TableInfoQueryRequest tableInfoQueryRequest,
+    public Page<TableInfo> listTableInfoByPage(TableInfoQueryRequest tableInfoQueryRequest,
                                                              HttpServletRequest request) {
         long current = tableInfoQueryRequest.getCurrent();
         long size = tableInfoQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Page<TableInfo> tableInfoPage = tableInfoService.page(new Page<>(current, size),
+        BusinessException.throwIf(size>20);
+        return tableInfoService.page(new Page<>(current, size),
                 getQueryWrapper(tableInfoQueryRequest));
-        return ResultUtils.success(tableInfoPage);
     }
 
     /**
@@ -160,7 +146,7 @@ public class TableInfoController {
      * @return
      */
     @GetMapping("/my/list")
-    public BaseResponse<List<TableInfo>> listMyTableInfo(TableInfoQueryRequest tableInfoQueryRequest,
+    public List<TableInfo> listMyTableInfo(TableInfoQueryRequest tableInfoQueryRequest,
                                                          HttpServletRequest request) {
 
         TableInfo tableInfoQuery = new TableInfo();
@@ -169,7 +155,7 @@ public class TableInfoController {
         }
         QueryWrapper<TableInfo> queryWrapper = getQueryWrapper(tableInfoQueryRequest);
         String[] fields = new String[]{"id", "name"};
-        queryWrapper.eq("reviewStatus", ReviewStatusEnum.PASS.getValue());
+        queryWrapper.eq("review_status", ReviewStatusEnum.PASS.getValue());
         queryWrapper.select(fields);
         List<TableInfo> tableInfoList = tableInfoService.list(queryWrapper);
 
@@ -184,12 +170,12 @@ public class TableInfoController {
 
         }
         //stream 去重
-        ArrayList<TableInfo> resultList = tableInfoList.stream().collect(Collectors
+        return tableInfoList.stream().collect(Collectors
                 .collectingAndThen(Collectors.toCollection(() ->
                         new TreeSet<>(Comparator.comparing(TableInfo::getId))
                 ), ArrayList::new));
 
-        return ResultUtils.success(resultList);
+
     }
 
     /***
@@ -199,18 +185,15 @@ public class TableInfoController {
      * @return
      */
     @GetMapping("/my/list/page")
-    public BaseResponse<Page<TableInfo>> listMyTableInfoByPage(TableInfoQueryRequest tableInfoQueryRequest
+    public Page<TableInfo> listMyTableInfoByPage(TableInfoQueryRequest tableInfoQueryRequest
             ,HttpServletRequest request){
         User loginUser = userService.getLoginUser(request);
         long current = tableInfoQueryRequest.getCurrent();
         long size = tableInfoQueryRequest.getPageSize();
-        if(size>20){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(size>20);
         QueryWrapper<TableInfo> queryWrapper = getQueryWrapper(tableInfoQueryRequest);
         queryWrapper.eq("userId",loginUser.getId()).or().eq("reviewStatus",ReviewStatusEnum.PASS.getValue());
-        Page<TableInfo> tableInfoPage = tableInfoService.page(new Page<>(current, size), queryWrapper);
-         return ResultUtils.success(tableInfoPage);
+        return tableInfoService.page(new Page<>(current, size), queryWrapper);
     }
 
     /**
@@ -221,22 +204,19 @@ public class TableInfoController {
      * @return
      */
     @GetMapping("/my/add/list/page")
-    public BaseResponse<Page<TableInfo>> listMyAddTableInfoByPage(TableInfoQueryRequest tableInfoQueryRequest,
+    public Page<TableInfo> listMyAddTableInfoByPage(TableInfoQueryRequest tableInfoQueryRequest,
                                                                   HttpServletRequest request) {
-        if (tableInfoQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(tableInfoQueryRequest == null);
         User loginUser = userService.getLoginUser(request);
         tableInfoQueryRequest.setUserId(loginUser.getId());
         long current = tableInfoQueryRequest.getCurrent();
         long size = tableInfoQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Page<TableInfo> tableInfoPage = tableInfoService.page(new Page<>(current, size),
+
+        BusinessException.throwIf(size>20);
+       return tableInfoService.page(new Page<>(current, size),
                 getQueryWrapper(tableInfoQueryRequest));
-        return ResultUtils.success(tableInfoPage);
+
     }
 
     // endregion
@@ -248,24 +228,21 @@ public class TableInfoController {
      * @return
      */
     @PostMapping("/generate/sql")
-    public BaseResponse<String> generateCreateSql(@RequestBody long id) {
-        if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public String generateCreateSql(@RequestBody @Positive(message = "id不合法") Long id) {
+
         TableInfo tableInfo = tableInfoService.getById(id);
-        if (tableInfo == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
+
+        BusinessException.throwIf(tableInfo == null,HttpCode.NOT_FOUND_ERROR);
         TableSchema tableSchema = GSON.fromJson(tableInfo.getContent(), TableSchema.class);
         SqlBuilder sqlBuilder = new SqlBuilder();
-        return ResultUtils.success(sqlBuilder.buildCreateTableSql(tableSchema));
+        return sqlBuilder.buildCreateTableSql(tableSchema);
     }
 
 
 
 
     private QueryWrapper<TableInfo> getQueryWrapper(TableInfoQueryRequest tableInfoQueryRequest) {
-        if (tableInfoQueryRequest == null) throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+        BusinessException.throwIf(tableInfoQueryRequest == null,HttpCode.NOT_FOUND_ERROR);
         TableInfo tableInfoQuery = new TableInfo();
 
         BeanUtils.copyProperties(tableInfoQueryRequest, tableInfoQuery);

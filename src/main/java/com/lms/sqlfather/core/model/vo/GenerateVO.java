@@ -10,7 +10,6 @@ import java.util.Map;
 /**
  * 生成的返回值
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class GenerateVO implements Serializable {

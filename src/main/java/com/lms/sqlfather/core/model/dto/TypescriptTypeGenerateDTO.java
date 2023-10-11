@@ -7,7 +7,6 @@ import java.util.List;
 /**
  * Typescript 类型生成封装类
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class TypescriptTypeGenerateDTO {

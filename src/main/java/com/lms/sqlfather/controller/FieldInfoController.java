@@ -3,11 +3,11 @@ package com.lms.sqlfather.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
+import com.lms.contants.HttpCode;
+import com.lms.result.EnableResponseAdvice;
 import com.lms.sqlfather.annotation.AuthCheck;
-import com.lms.sqlfather.common.BaseResponse;
 import com.lms.sqlfather.common.DeleteRequest;
-import com.lms.sqlfather.common.ErrorCode;
-import com.lms.sqlfather.common.ResultUtils;
+
 import com.lms.sqlfather.constant.CommonConstant;
 import com.lms.sqlfather.core.builder.SqlBuilder;
 import com.lms.sqlfather.core.schema.TableSchema;
@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.constraints.Positive;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -36,6 +37,7 @@ import com.lms.sqlfather.core.schema.TableSchema.Field;
 
 @RestController
 @RequestMapping("/field_info")
+@EnableResponseAdvice
 public class FieldInfoController {
 
     @Resource
@@ -54,11 +56,9 @@ public class FieldInfoController {
      * @return
      */
     @PostMapping("/add")
-    public BaseResponse<Long> addFieldInfo(@RequestBody FieldInfoAddRequest fieldInfoAddRequest,
+    public Long addFieldInfo(@RequestBody FieldInfoAddRequest fieldInfoAddRequest,
                                            HttpServletRequest request) {
-        if (fieldInfoAddRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(fieldInfoAddRequest == null);
         FieldInfo fieldInfo = new FieldInfo();
         BeanUtils.copyProperties(fieldInfoAddRequest, fieldInfo);
         // 校验
@@ -66,10 +66,9 @@ public class FieldInfoController {
         User loginUser = userService.getLoginUser(request);
         fieldInfo.setUserId(loginUser.getId());
         boolean result = fieldInfoService.save(fieldInfo);
-        if (!result) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR);
-        }
-        return ResultUtils.success(fieldInfo.getId());
+
+        BusinessException.throwIf(!result);
+        return fieldInfo.getId();
     }
 
     /**
@@ -80,23 +79,19 @@ public class FieldInfoController {
      * @return
      */
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteFieldInfo(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
-        if (deleteRequest == null || deleteRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Boolean deleteFieldInfo(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+
+        BusinessException.throwIf(deleteRequest == null || deleteRequest.getId() <= 0,
+                HttpCode.PARAMS_ERROR);
         User user = userService.getLoginUser(request);
         long id = deleteRequest.getId();
         // 判断是否存在
         FieldInfo oldFieldInfo = fieldInfoService.getById(id);
-        if (oldFieldInfo == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
+        BusinessException.throwIf(oldFieldInfo == null);
         // 仅本人或管理员可删除
-        if (!oldFieldInfo.getUserId().equals(user.getId()) && !userService.isAdmin(request)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-        boolean b = fieldInfoService.removeById(id);
-        return ResultUtils.success(b);
+        BusinessException.throwIf(!oldFieldInfo.getUserId().equals(user.getId()) && !userService.isAdmin(request));
+        return fieldInfoService.removeById(id);
+
     }
 
     /**
@@ -107,10 +102,9 @@ public class FieldInfoController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = "admin")
-    public BaseResponse<Boolean> updateFieldInfo(@RequestBody FieldInfoUpdateRequest fieldInfoUpdateRequest) {
-        if (fieldInfoUpdateRequest == null || fieldInfoUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Boolean updateFieldInfo(@RequestBody FieldInfoUpdateRequest fieldInfoUpdateRequest) {
+
+        BusinessException.throwIf(fieldInfoUpdateRequest == null || fieldInfoUpdateRequest.getId() <= 0);
         FieldInfo fieldInfo = new FieldInfo();
         BeanUtils.copyProperties(fieldInfoUpdateRequest, fieldInfo);
         // 参数校验
@@ -118,11 +112,9 @@ public class FieldInfoController {
         long id = fieldInfoUpdateRequest.getId();
         // 判断是否存在
         FieldInfo oldFieldInfo = fieldInfoService.getById(id);
-        if (oldFieldInfo == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
-        boolean result = fieldInfoService.updateById(fieldInfo);
-        return ResultUtils.success(result);
+
+        BusinessException.throwIf(oldFieldInfo == null);
+        return fieldInfoService.updateById(fieldInfo);
     }
 
     /**
@@ -132,12 +124,10 @@ public class FieldInfoController {
      * @return
      */
     @GetMapping("/get")
-    public BaseResponse<FieldInfo> getFieldInfoById(long id) {
-        if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        FieldInfo fieldInfo = fieldInfoService.getById(id);
-        return ResultUtils.success(fieldInfo);
+    public FieldInfo getFieldInfoById(@Positive(message = "id不合法") Long id) {
+
+       return fieldInfoService.getById(id);
+
     }
 
     /**
@@ -148,9 +138,9 @@ public class FieldInfoController {
      */
     @AuthCheck(mustRole = "admin")
     @GetMapping("/list")
-    public BaseResponse<List<FieldInfo>> listFieldInfo(FieldInfoQueryRequest fieldInfoQueryRequest) {
-        List<FieldInfo> fieldInfoList = fieldInfoService.list(getQueryWrapper(fieldInfoQueryRequest));
-        return ResultUtils.success(fieldInfoList);
+    public List<FieldInfo> listFieldInfo(FieldInfoQueryRequest fieldInfoQueryRequest) {
+        return  fieldInfoService.list(getQueryWrapper(fieldInfoQueryRequest));
+
     }
 
     /**
@@ -161,17 +151,15 @@ public class FieldInfoController {
      * @return
      */
     @GetMapping("/list/page")
-    public BaseResponse<Page<FieldInfo>> listFieldInfoByPage(FieldInfoQueryRequest fieldInfoQueryRequest,
+    public Page<FieldInfo> listFieldInfoByPage(FieldInfoQueryRequest fieldInfoQueryRequest,
                                                              HttpServletRequest request) {
         long current = fieldInfoQueryRequest.getCurrent();
         long size = fieldInfoQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Page<FieldInfo> fieldInfoPage = fieldInfoService.page(new Page<>(current, size),
+        BusinessException.throwIf(size>20);
+        return fieldInfoService.page(new Page<>(current, size),
                 getQueryWrapper(fieldInfoQueryRequest));
-        return ResultUtils.success(fieldInfoPage);
+
     }
 
     /**
@@ -182,7 +170,7 @@ public class FieldInfoController {
      * @return
      */
     @GetMapping("/my/list")
-    public BaseResponse<List<FieldInfo>> listMyFieldInfo(FieldInfoQueryRequest fieldInfoQueryRequest,
+    public List<FieldInfo> listMyFieldInfo(FieldInfoQueryRequest fieldInfoQueryRequest,
                                                          HttpServletRequest request) {
         FieldInfo fieldInfoQuery = new FieldInfo();
         if (fieldInfoQueryRequest != null) {
@@ -206,9 +194,8 @@ public class FieldInfoController {
             // 未登录
         }
         // 根据 id 去重
-        List<FieldInfo> resultList = fieldInfoList.stream().collect(Collectors.collectingAndThen(
+       return fieldInfoList.stream().collect(Collectors.collectingAndThen(
                 Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(FieldInfo::getId))), ArrayList::new));
-        return ResultUtils.success(resultList);
     }
 
     /**
@@ -219,21 +206,19 @@ public class FieldInfoController {
      * @return
      */
     @GetMapping("/my/list/page")
-    public BaseResponse<Page<FieldInfo>> listMyFieldInfoByPage(FieldInfoQueryRequest fieldInfoQueryRequest,
+    public Page<FieldInfo> listMyFieldInfoByPage(FieldInfoQueryRequest fieldInfoQueryRequest,
                                                                HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         long current = fieldInfoQueryRequest.getCurrent();
         long size = fieldInfoQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(size > 20);
         QueryWrapper<FieldInfo> queryWrapper = getQueryWrapper(fieldInfoQueryRequest);
         queryWrapper.eq("userId", loginUser.getId())
                 .or()
                 .eq("reviewStatus", ReviewStatusEnum.PASS.getValue());
-        Page<FieldInfo> fieldInfoPage = fieldInfoService.page(new Page<>(current, size), queryWrapper);
-        return ResultUtils.success(fieldInfoPage);
+        return fieldInfoService.page(new Page<>(current, size), queryWrapper);
+
     }
 
     /**
@@ -244,22 +229,19 @@ public class FieldInfoController {
      * @return
      */
     @GetMapping("/my/add/list/page")
-    public BaseResponse<Page<FieldInfo>> listMyAddFieldInfoByPage(FieldInfoQueryRequest fieldInfoQueryRequest,
+    public Page<FieldInfo> listMyAddFieldInfoByPage(FieldInfoQueryRequest fieldInfoQueryRequest,
                                                                   HttpServletRequest request) {
-        if (fieldInfoQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+
+        BusinessException.throwIf(fieldInfoQueryRequest == null);
         User loginUser = userService.getLoginUser(request);
         fieldInfoQueryRequest.setUserId(loginUser.getId());
         long current = fieldInfoQueryRequest.getCurrent();
         long size = fieldInfoQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Page<FieldInfo> fieldInfoPage = fieldInfoService.page(new Page<>(current, size),
+        BusinessException.throwIf(size > 20);
+        return fieldInfoService.page(new Page<>(current, size),
                 getQueryWrapper(fieldInfoQueryRequest));
-        return ResultUtils.success(fieldInfoPage);
+
     }
 
     /**
@@ -269,18 +251,15 @@ public class FieldInfoController {
      * @return
      */
     @PostMapping("/generate/sql")
-    public BaseResponse<String> generateCreateSql(@RequestBody long id) {
+    public String generateCreateSql(@RequestBody @Positive(message = "id不合法") Long id) {
 
-        if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+
         FieldInfo byId = fieldInfoService.getById(id);
-        if (byId == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
+
+        BusinessException.throwIf(byId==null);
         Field field = GSON.fromJson(byId.getContent(), Field.class);
         SqlBuilder sqlBuilder=new SqlBuilder();
-        return ResultUtils.success(sqlBuilder.buildCreateFieldSql(field));
+        return sqlBuilder.buildCreateFieldSql(field);
     }
 
 
@@ -291,9 +270,8 @@ public class FieldInfoController {
      * @return
      */
     private QueryWrapper<FieldInfo> getQueryWrapper(FieldInfoQueryRequest fieldInfoQueryRequest) {
-        if (fieldInfoQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
-        }
+        BusinessException.throwIf(fieldInfoQueryRequest == null,HttpCode.PARAMS_ERROR,
+                "请求参数为空");
         FieldInfo fieldInfoQuery = new FieldInfo();
         BeanUtils.copyProperties(fieldInfoQueryRequest, fieldInfoQuery);
         String searchName = fieldInfoQueryRequest.getSearchName();
@@ -308,11 +286,11 @@ public class FieldInfoController {
         fieldInfoQuery.setContent(null);
         QueryWrapper<FieldInfo> queryWrapper = new QueryWrapper<>(fieldInfoQuery);
         queryWrapper.like(StringUtils.isNotBlank(name), "name", name);
-        queryWrapper.like(StringUtils.isNotBlank(fieldName), "fieldName", fieldName);
+        queryWrapper.like(StringUtils.isNotBlank(fieldName), "field_name", fieldName);
         queryWrapper.like(StringUtils.isNotBlank(content), "content", content);
         // 同时按 name、fieldName 搜索
         if (StringUtils.isNotBlank(searchName)) {
-            queryWrapper.like("name", searchName).or().like("fieldName", searchName);
+            queryWrapper.like("name", searchName).or().like("field_name", searchName);
         }
         queryWrapper.orderBy(StringUtils.isNotBlank(sortField), sortOrder.equals(CommonConstant.SORT_ORDER_ASC),
                 sortField);

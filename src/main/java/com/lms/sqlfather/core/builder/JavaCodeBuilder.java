@@ -1,7 +1,7 @@
 package com.lms.sqlfather.core.builder;
 
 import cn.hutool.core.util.StrUtil;
-import com.lms.sqlfather.common.ErrorCode;
+import com.lms.contants.HttpCode;
 import com.lms.sqlfather.core.model.dto.JavaEntityGenerateDTO;
 import com.lms.sqlfather.core.model.dto.JavaEntityGenerateDTO.FieldDTO;
 import com.lms.sqlfather.core.model.dto.JavaObjectGenerateDTO;
@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 /**
  * Java 代码生成器
  *
- * @author https://github.com/liyupi
  */
 @Component
 @Slf4j
@@ -85,9 +84,9 @@ public class JavaCodeBuilder {
      */
     @SneakyThrows
     public static String buildJavaObjectCode(TableSchema tableSchema, List<Map<String, Object>> dataList) {
-        if (CollectionUtils.isEmpty(dataList)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "缺少示例数据");
-        }
+
+         BusinessException.throwIf(CollectionUtils.isEmpty(dataList),
+                 HttpCode.PARAMS_ERROR,"缺少示例数据");
         // 传递参数
         JavaObjectGenerateDTO javaObjectGenerateDTO = new JavaObjectGenerateDTO();
         String tableName = tableSchema.getTableName();

@@ -3,7 +3,6 @@ package com.lms.sqlfather.core.schema;
 /**
  * SQL 相关异常
  *
- * @author https://github.com/liyupi
  */
 public class SchemaException extends RuntimeException {
 

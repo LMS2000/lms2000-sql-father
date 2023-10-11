@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 /**
  * 字段类型枚举
  *
- * @author https://github.com/liyupi
  */
 public enum FieldTypeEnum {
 

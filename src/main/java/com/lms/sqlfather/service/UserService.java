@@ -8,7 +8,6 @@ import javax.servlet.http.HttpServletRequest;
 /**
  * 用户服务
  *
- * @author https://github.com/liyupi
  */
 public interface UserService extends IService<User> {
 
@@ -22,7 +21,7 @@ public interface UserService extends IService<User> {
      * @param userRole 用户角色
      * @return 新用户 id
      */
-    long userRegister(String userName, String userAccount, String userPassword, String checkPassword, String userRole);
+    long userRegister(String userName, String userAccount, String userPassword, String checkPassword, String email,String userRole);
 
     /**
      * 用户登录
@@ -57,5 +56,8 @@ public interface UserService extends IService<User> {
      * @return
      */
     boolean userLogout(HttpServletRequest request);
+
+    String sendEmail(String email, Integer type);
+
 
 }

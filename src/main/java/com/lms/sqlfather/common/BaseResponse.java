@@ -1,5 +1,6 @@
 package com.lms.sqlfather.common;
 
+import com.lms.contants.HttpCode;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -8,7 +9,6 @@ import java.io.Serializable;
  * 通用返回类
  *
  * @param <T>
- * @author https://github.com/liyupi
  */
 @Data
 public class BaseResponse<T> implements Serializable {
@@ -29,7 +29,7 @@ public class BaseResponse<T> implements Serializable {
         this(code, data, "");
     }
 
-    public BaseResponse(ErrorCode errorCode) {
+    public BaseResponse(HttpCode errorCode) {
         this(errorCode.getCode(), null, errorCode.getMessage());
     }
 }

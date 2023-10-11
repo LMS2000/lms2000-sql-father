@@ -1,12 +1,11 @@
 package com.lms.sqlfather.aop;
 
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
+import com.lms.contants.HttpCode;
 import com.lms.sqlfather.annotation.AuthCheck;
-import com.lms.sqlfather.common.ErrorCode;
 import com.lms.sqlfather.exception.BusinessException;
 import com.lms.sqlfather.model.entity.User;
 import com.lms.sqlfather.service.UserService;
-import org.apache.commons.collections4.BagUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -43,14 +42,14 @@ public class AuthInterceptor {
         if (CollectionUtils.isNotEmpty(anyRolesList)) {
             String userRole = loginUser.getUserRole();
             if (!anyRolesList.contains(userRole)) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+                throw new BusinessException(HttpCode.NO_AUTH_ERROR);
             }
         }
 
         if (StringUtils.isNotBlank(mustRole)) {
             String userRole = loginUser.getUserRole();
             if (!mustRole.equals(userRole)) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+                throw new BusinessException(HttpCode.NO_AUTH_ERROR);
             }
         }
 

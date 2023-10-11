@@ -3,7 +3,6 @@ package com.lms.sqlfather.constant;
 /**
  * 用户常量
  *
- * @author https://github.com/liyupi
  */
 public interface UserConstant {
 
@@ -29,5 +28,17 @@ public interface UserConstant {
      */
     String ADMIN_ROLE = "admin";
 
+
+    String CHECK_CODE_KEY = "check_code_key";
+    String CHECK_CODE_KEY_EMAIL = "check_code_key_email";
+
+    // 邮箱验证码前缀
+
+    String EMAIIL_HEADER="check_email_code:";
+
+
+
     // endregion
+
+
 }

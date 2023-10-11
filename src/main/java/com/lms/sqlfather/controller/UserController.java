@@ -4,34 +4,97 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.plugins.pagination.PageDTO;
 import com.google.gson.internal.$Gson$Preconditions;
+import com.lms.contants.HttpCode;
+import com.lms.result.EnableResponseAdvice;
+import com.lms.result.ResultData;
 import com.lms.sqlfather.annotation.AuthCheck;
-import com.lms.sqlfather.common.BaseResponse;
 import com.lms.sqlfather.common.DeleteRequest;
-import com.lms.sqlfather.common.ErrorCode;
-import com.lms.sqlfather.common.ResultUtils;
 import com.lms.sqlfather.constant.UserConstant;
+import com.lms.sqlfather.core.utils.CreateImageCode;
 import com.lms.sqlfather.exception.BusinessException;
 import com.lms.sqlfather.model.dto.*;
 import com.lms.sqlfather.model.entity.User;
 import com.lms.sqlfather.model.vo.UserVO;
 import com.lms.sqlfather.service.UserService;
-import net.datafaker.Bool;
+import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import javax.validation.constraints.DecimalMin;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.validation.constraints.Positive;
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/user")
+@EnableResponseAdvice
 public class UserController {
 
     @Resource
     private UserService userService;
+
+
+    /**
+     * 验证码
+     *  0 为注册    1 为邮箱验证
+     * @param response
+     * @param request
+     * @param type
+     * @throws IOException
+     */
+    @GetMapping(value = "/checkCode")
+    @ApiOperation("图片校验码")
+    public void checkCode(HttpServletResponse response, HttpServletRequest request, Integer type) throws
+            IOException {
+        CreateImageCode vCode = new CreateImageCode(130, 38, 5, 10);
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Cache-Control", "no-cache");
+        response.setDateHeader("Expires", 0);
+        response.setContentType("image/jpeg");
+        String code = vCode.getCode();
+        HttpSession session = request.getSession();
+        if (type == null || type == 0) {
+            session.setAttribute(UserConstant.CHECK_CODE_KEY,code);
+        } else {
+            session.setAttribute(UserConstant.CHECK_CODE_KEY_EMAIL,code);
+        }
+        vCode.write(response.getOutputStream());
+    }
+
+
+
+    /**
+     * type 0 为注册 1 为找回密码
+     * @param session
+     * @return
+     */
+    @PostMapping("/sendEmailCode")
+    public Boolean sendEmailCode(HttpSession session,@Validated @RequestBody SendEmailRequest sendEmailRequest) {
+        String code = sendEmailRequest.getCode();
+        String email = sendEmailRequest.getEmail();
+        Integer type = sendEmailRequest.getType();
+        try {
+            if (!code.equalsIgnoreCase((String) session.getAttribute(UserConstant.CHECK_CODE_KEY_EMAIL))) {
+                throw new BusinessException(HttpCode.PARAMS_ERROR,"图片验证码不正确");
+            }
+            String emailCode = userService.sendEmail(email, type);
+            session.setAttribute(UserConstant.EMAIIL_HEADER+type,emailCode);
+            return true;
+        } finally {
+            session.removeAttribute(UserConstant.CHECK_CODE_KEY_EMAIL);
+        }
+    }
+
+
+
+
+
 
     /**
      * 注册
@@ -40,19 +103,29 @@ public class UserController {
      */
 
     @PostMapping("/register")
-    public BaseResponse<Long> registerUser(@RequestBody(required = true) UserRegisterRequest userRegisterRequest){
-        if (userRegisterRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+    public Long registerUser(@RequestBody(required = true) UserRegisterRequest userRegisterRequest,HttpSession session){
+
+        try{
+
+            BusinessException.throwIf(userRegisterRequest == null);
+            String code = (String) session.getAttribute(UserConstant.EMAIIL_HEADER);
+            BusinessException.throwIf(org.springframework.util.StringUtils.isEmpty(code)||!code.equals(userRegisterRequest.getEmailCode()),
+                    HttpCode.PARAMS_ERROR,"邮箱验证码错误");
+            String userName = userRegisterRequest.getUserName();
+            String userAccount = userRegisterRequest.getUserAccount();
+            String userPassword = userRegisterRequest.getUserPassword();
+            String checkPassword = userRegisterRequest.getCheckPassword();
+            String email = userRegisterRequest.getEmail();
+            if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
+                return null;
+            }
+            return userService.userRegister(userName, userAccount, userPassword, checkPassword,email, UserConstant.DEFAULT_ROLE);
+
+        }finally {
+            session.removeAttribute(UserConstant.EMAIIL_HEADER);
         }
-        String userName = userRegisterRequest.getUserName();
-        String userAccount = userRegisterRequest.getUserAccount();
-        String userPassword = userRegisterRequest.getUserPassword();
-        String checkPassword = userRegisterRequest.getCheckPassword();
-        if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
-            return null;
-        }
-        long result = userService.userRegister(userName, userAccount, userPassword, checkPassword, UserConstant.DEFAULT_ROLE);
-        return ResultUtils.success(result);
+
+
     }
 
     /**
@@ -62,17 +135,23 @@ public class UserController {
      * @return
      */
     @PostMapping("/login")
-    public BaseResponse<User> userLogin(@RequestBody(required = true)UserLoginRequest userLoginRequest, HttpServletRequest request){
-        if (userLoginRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+    public User userLogin(@RequestBody(required = true)UserLoginRequest userLoginRequest, HttpServletRequest request){
+
+        try{
+            BusinessException.throwIf(userLoginRequest == null);
+            //校验码校验
+            String trueCode =(String)request.getSession().getAttribute(UserConstant.CHECK_CODE_KEY);
+            String code = userLoginRequest.getCode();
+            BusinessException.throwIf(org.springframework.util.StringUtils.isEmpty(trueCode)||!trueCode.equals(code),HttpCode.PARAMS_ERROR,
+                    "图片校验码不正确");
+            String userAccount = userLoginRequest.getUserAccount();
+            String userPassword = userLoginRequest.getUserPassword();
+            BusinessException.throwIf(StringUtils.isAnyBlank(userAccount, userPassword));
+            return userService.userLogin(userAccount, userPassword, request);
+
+        }finally {
+            request.getSession().removeAttribute(UserConstant.CHECK_CODE_KEY);
         }
-        String userAccount = userLoginRequest.getUserAccount();
-        String userPassword = userLoginRequest.getUserPassword();
-        if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        User user = userService.userLogin(userAccount, userPassword, request);
-        return ResultUtils.success(user);
     }
 
     /**
@@ -81,12 +160,8 @@ public class UserController {
      * @return
      */
    @PostMapping("/logout")
-   public BaseResponse<Boolean> logout(HttpServletRequest request){
-        if (request == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        boolean isLogout = userService.userLogout(request);
-         return ResultUtils.success(isLogout);
+   public Boolean logout(HttpServletRequest request){
+        return userService.userLogout(request);
     }
 
 
@@ -96,11 +171,11 @@ public class UserController {
      * @return
      */
     @GetMapping("/get/login")
-    public BaseResponse<UserVO> getCurrentUser(HttpServletRequest request){
+    public UserVO getCurrentUser(HttpServletRequest request){
         User loginUser = userService.getLoginUser(request);
         UserVO userVO=new UserVO();
         BeanUtils.copyProperties(loginUser,userVO);
-        return ResultUtils.success(userVO);
+        return userVO;
     }
 
     /**
@@ -111,17 +186,14 @@ public class UserController {
      */
     @PostMapping("/add")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Long> add(@RequestBody(required = true)UserAddRequest userAddRequest,HttpServletRequest request){
-        if (userAddRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Long add(@RequestBody(required = true)UserAddRequest userAddRequest,HttpServletRequest request){
+
+        BusinessException.throwIf(userAddRequest == null);
         User user = new User();
         BeanUtils.copyProperties(userAddRequest, user);
         boolean result = userService.save(user);
-        if (!result) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR);
-        }
-        return ResultUtils.success(user.getId());
+        BusinessException.throwIf(!result, HttpCode.OPERATION_ERROR);
+        return user.getId();
     }
 
     /**
@@ -132,12 +204,11 @@ public class UserController {
      */
    @DeleteMapping("/delete")
    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-   public BaseResponse<Boolean> delete(@RequestBody DeleteRequest deleteRequest,HttpServletRequest request){
-        if (deleteRequest == null || deleteRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        boolean b = userService.removeById(deleteRequest.getId());
-        return ResultUtils.success(b);
+   public Boolean delete(@RequestBody DeleteRequest deleteRequest,HttpServletRequest request){
+
+        BusinessException.throwIf(deleteRequest == null || deleteRequest.getId() <= 0);
+        return userService.removeById(deleteRequest.getId());
+
    }
 
     /**
@@ -149,15 +220,14 @@ public class UserController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest,
+    public Boolean updateUser(@RequestBody UserUpdateRequest userUpdateRequest,
                                             HttpServletRequest request) {
-        if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+
+        BusinessException.throwIf(userUpdateRequest == null || userUpdateRequest.getId() == null);
         User user = new User();
         BeanUtils.copyProperties(userUpdateRequest, user);
-        boolean result = userService.updateById(user);
-        return ResultUtils.success(result);
+        return userService.updateById(user);
+
     }
     /**
      * 获取用户列表
@@ -168,7 +238,7 @@ public class UserController {
      */
     @GetMapping("/list")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<List<UserVO>> listUser(UserQueryRequest userQueryRequest, HttpServletRequest request) {
+    public List<UserVO> listUser(UserQueryRequest userQueryRequest, HttpServletRequest request) {
         User userQuery = new User();
         if (userQueryRequest != null) {
             BeanUtils.copyProperties(userQueryRequest, userQuery);
@@ -180,7 +250,7 @@ public class UserController {
             BeanUtils.copyProperties(user, userVO);
             return userVO;
         }).collect(Collectors.toList());
-        return ResultUtils.success(userVOList);
+        return userVOList;
     }
     /**
      * 根据 id 获取用户
@@ -191,14 +261,12 @@ public class UserController {
      */
     @GetMapping("/get")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<UserVO> getUserById(int id, HttpServletRequest request) {
-        if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public UserVO getUserById(@Positive(message = "id不合法") Integer id, HttpServletRequest request) {
+
         User user = userService.getById(id);
         UserVO userVO = new UserVO();
         BeanUtils.copyProperties(user, userVO);
-        return ResultUtils.success(userVO);
+        return userVO;
     }
 
 
@@ -216,7 +284,7 @@ public class UserController {
 
     @GetMapping("/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Page<UserVO>> page(UserQueryRequest userQueryRequest,HttpServletRequest request){
+    public Page<UserVO> page(UserQueryRequest userQueryRequest,HttpServletRequest request){
         long current = 1;
         long size = 10;
         User userQuery = new User();
@@ -235,7 +303,7 @@ public class UserController {
             return userVO;
         }).collect(Collectors.toList());
         userVOPage.setRecords(userVOList);
-        return ResultUtils.success(userVOPage);
+        return userVOPage;
     }
 
 }

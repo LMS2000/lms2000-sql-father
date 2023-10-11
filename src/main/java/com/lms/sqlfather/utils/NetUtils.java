@@ -6,7 +6,6 @@ import java.net.InetAddress;
 /**
  * 网络工具类
  *
- * @author https://github.com/liyupi
  */
 public class NetUtils {
 

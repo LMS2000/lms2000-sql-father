@@ -2,12 +2,13 @@ package com.lms.sqlfather.model.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
 /**
  * 创建请求
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class DictAddRequest implements Serializable {

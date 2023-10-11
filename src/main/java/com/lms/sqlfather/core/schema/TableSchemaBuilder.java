@@ -8,7 +8,7 @@ import com.alibaba.druid.sql.dialect.mysql.parser.MySqlCreateTableParser;
 import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.google.gson.Gson;
-import com.lms.sqlfather.common.ErrorCode;
+import com.lms.contants.HttpCode;
 import com.lms.sqlfather.core.builder.sql.MySQLDialect;
 import com.lms.sqlfather.core.model.enums.FieldTypeEnum;
 import com.lms.sqlfather.core.model.enums.MockTypeEnum;
@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 /**
  * 表概要生成器
  *
- * @author https://github.com/liyupi
  */
 @Component
 @Slf4j
@@ -63,14 +62,12 @@ public class TableSchemaBuilder {
      * @return
      */
     public static TableSchema buildFromAuto(String content) {
-        if (StringUtils.isBlank(content)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+
+        BusinessException.throwIf(StringUtils.isBlank(content));
         // 切分单词
         String[] words = content.split("[,，]");
-        if (ArrayUtils.isEmpty(words) || words.length > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+
+        BusinessException.throwIf(ArrayUtils.isEmpty(words) || words.length > 20);
         // 根据单词去词库里匹配列信息，未匹配到的使用默认值
         QueryWrapper<FieldInfo> queryWrapper = new QueryWrapper<>();
         queryWrapper.in("name", Arrays.asList(words)).or().in("fieldName", Arrays.asList(words));
@@ -110,9 +107,7 @@ public class TableSchemaBuilder {
      * @return 生成的 TableSchema
      */
     public static TableSchema buildFromSql(String sql) {
-        if (StringUtils.isBlank(sql)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(StringUtils.isBlank(sql));
         try {
             // 解析 SQL
             MySqlCreateTableParser parser = new MySqlCreateTableParser(sql);
@@ -175,7 +170,7 @@ public class TableSchemaBuilder {
             return tableSchema;
         } catch (Exception e) {
             log.error("SQL 解析错误", e);
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请确认 SQL 语句正确");
+            throw new BusinessException(HttpCode.PARAMS_ERROR, "请确认 SQL 语句正确");
         }
     }
 
@@ -188,9 +183,7 @@ public class TableSchemaBuilder {
     public static TableSchema buildFromExcel(MultipartFile file) {
         try {
             List<Map<Integer, String>> dataList = EasyExcel.read(file.getInputStream()).sheet().headRowNumber(0).doReadSync();
-            if (CollectionUtils.isEmpty(dataList)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "表格无数据");
-            }
+            BusinessException.throwIf(CollectionUtils.isEmpty(dataList),"表格无数据");
             // 第一行为表头
             Map<Integer, String> map = dataList.get(0);
             List<Field> fieldList = map.values().stream().map(name -> {
@@ -215,7 +208,7 @@ public class TableSchemaBuilder {
             return tableSchema;
         } catch (Exception e) {
             log.error("buildFromExcel error", e);
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "表格解析错误");
+            throw new BusinessException(HttpCode.PARAMS_ERROR, "表格解析错误");
         }
     }
 

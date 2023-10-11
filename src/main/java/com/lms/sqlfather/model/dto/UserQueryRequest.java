@@ -10,7 +10,6 @@ import java.util.Date;
 /**
  * 用户查询请求
  *
- * @author https://github.com/liyupi
  */
 @EqualsAndHashCode(callSuper = true)
 @Data

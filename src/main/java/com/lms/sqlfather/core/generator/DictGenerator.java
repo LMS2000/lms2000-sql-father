@@ -2,7 +2,7 @@ package com.lms.sqlfather.core.generator;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
-import com.lms.sqlfather.common.ErrorCode;
+import com.lms.contants.HttpCode;
 import com.lms.sqlfather.core.schema.TableSchema.Field;
 import com.lms.sqlfather.exception.BusinessException;
 import com.lms.sqlfather.model.entity.Dict;
@@ -31,10 +31,11 @@ public class DictGenerator implements DataGenerator {
         long dictId = Long.parseLong(mockParams);
         List<String> result=new ArrayList<>();
         Dict byId = dictService.getById(dictId);
-        if(byId==null)throw new BusinessException(ErrorCode.NOT_FOUND_ERROR,"找不到词库");
+        BusinessException.throwIf(byId==null, HttpCode.NOT_FOUND_ERROR,
+                "找不到词库");
         //TypeToken :这种写法能将返回一个json数据集合
-        List<String> typeList = GSON.fromJson(byId.getContent()
-                , new TypeToken<List<String>>() {
+        List<String> typeList = GSON.fromJson(byId.getContent(),
+                new TypeToken<List<String>>() {
         }.getType());
         for (int i = 0; i < rowNum; i++) {
              result.add(typeList.get(RandomUtils.nextInt(0,typeList.size())));

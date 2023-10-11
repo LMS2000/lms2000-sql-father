@@ -2,11 +2,10 @@ package com.lms.sqlfather.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.lms.contants.HttpCode;
+import com.lms.result.EnableResponseAdvice;
 import com.lms.sqlfather.annotation.AuthCheck;
-import com.lms.sqlfather.common.BaseResponse;
 import com.lms.sqlfather.common.DeleteRequest;
-import com.lms.sqlfather.common.ErrorCode;
-import com.lms.sqlfather.common.ResultUtils;
 import com.lms.sqlfather.constant.CommonConstant;
 import com.lms.sqlfather.core.GeneratorFacade;
 import com.lms.sqlfather.core.model.enums.MockTypeEnum;
@@ -27,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import com.lms.sqlfather.core.schema.TableSchema.Field;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.constraints.Positive;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/dict")
+@EnableResponseAdvice
 public class DictController {
 
 
@@ -51,10 +52,9 @@ public class DictController {
      * @return
      */
     @PostMapping("/add")
-    public BaseResponse<Long> addDict(@RequestBody DictAddRequest dictAddRequest, HttpServletRequest request) {
-        if (dictAddRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Long addDict(@RequestBody DictAddRequest dictAddRequest, HttpServletRequest request) {
+
+        BusinessException.throwIf(dictAddRequest==null, HttpCode.PARAMS_ERROR);
         Dict dict = new Dict();
         BeanUtils.copyProperties(dictAddRequest, dict);
         // 校验
@@ -62,10 +62,8 @@ public class DictController {
         User loginUser = userService.getLoginUser(request);
         dict.setUserId(loginUser.getId());
         boolean result = dictService.save(dict);
-        if (!result) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR);
-        }
-        return ResultUtils.success(dict.getId());
+        BusinessException.throwIf(!result, HttpCode.OPERATION_ERROR);
+        return dict.getId();
     }
 
     /**
@@ -76,23 +74,20 @@ public class DictController {
      * @return
      */
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteDict(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
-        if (deleteRequest == null || deleteRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Boolean deleteDict(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+
+        BusinessException.throwIf(deleteRequest == null || deleteRequest.getId() <= 0,
+                HttpCode.PARAMS_ERROR);
         User user = userService.getLoginUser(request);
         long id = deleteRequest.getId();
         // 判断是否存在
         Dict oldDict = dictService.getById(id);
-        if (oldDict == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
+        BusinessException.throwIf(oldDict == null,HttpCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可删除
-        if (!oldDict.getUserId().equals(user.getId()) && !userService.isAdmin(request)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-        boolean b = dictService.removeById(id);
-        return ResultUtils.success(b);
+        BusinessException.throwIf(!oldDict.getUserId().equals(user.getId()) && !userService.isAdmin(request),
+                HttpCode.NO_AUTH_ERROR);
+       return dictService.removeById(id);
+
     }
 
     /**
@@ -103,10 +98,10 @@ public class DictController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = "admin")
-    public BaseResponse<Boolean> updateDict(@RequestBody DictUpdateRequest dictUpdateRequest) {
-        if (dictUpdateRequest == null || dictUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public Boolean updateDict(@RequestBody DictUpdateRequest dictUpdateRequest) {
+
+        BusinessException.throwIf(dictUpdateRequest == null || dictUpdateRequest.getId() <= 0,
+                HttpCode.PARAMS_ERROR);
         Dict dict = new Dict();
         BeanUtils.copyProperties(dictUpdateRequest, dict);
         // 参数校验
@@ -114,11 +109,10 @@ public class DictController {
         long id = dictUpdateRequest.getId();
         // 判断是否存在
         Dict oldDict = dictService.getById(id);
-        if (oldDict == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
-        boolean result = dictService.updateById(dict);
-        return ResultUtils.success(result);
+
+        BusinessException.throwIf(oldDict == null,HttpCode.NOT_FOUND_ERROR);
+        return dictService.updateById(dict);
+
     }
 
     /**
@@ -128,12 +122,9 @@ public class DictController {
      * @return
      */
     @GetMapping("/get")
-    public BaseResponse<Dict> getDictById(long id) {
-        if (id <= 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Dict dict = dictService.getById(id);
-        return ResultUtils.success(dict);
+    public Dict getDictById(@Positive(message = "id不合法") Long id) {
+        return dictService.getById(id);
+
     }
 
     /**
@@ -144,9 +135,9 @@ public class DictController {
      */
     @AuthCheck(mustRole = "admin")
     @GetMapping("/list")
-    public BaseResponse<List<Dict>> listDict(DictQueryRequest dictQueryRequest) {
-        List<Dict> dictList = dictService.list(getQueryWrapper(dictQueryRequest));
-        return ResultUtils.success(dictList);
+    public List<Dict> listDict(DictQueryRequest dictQueryRequest) {
+        return dictService.list(getQueryWrapper(dictQueryRequest));
+
     }
 
     /**
@@ -157,17 +148,16 @@ public class DictController {
      * @return
      */
     @GetMapping("/list/page")
-    public BaseResponse<Page<Dict>> listDictByPage(DictQueryRequest dictQueryRequest,
+    public Page<Dict> listDictByPage(DictQueryRequest dictQueryRequest,
                                                    HttpServletRequest request) {
         long current = dictQueryRequest.getCurrent();
         long size = dictQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Page<Dict> dictPage = dictService.page(new Page<>(current, size),
+
+        BusinessException.throwIf(size>20,HttpCode.PARAMS_ERROR);
+        return dictService.page(new Page<>(current, size),
                 getQueryWrapper(dictQueryRequest));
-        return ResultUtils.success(dictPage);
+
     }
 
     /**
@@ -178,11 +168,10 @@ public class DictController {
      * @return
      */
     @GetMapping("/my/list")
-    public BaseResponse<List<Dict>> listMyDict(DictQueryRequest dictQueryRequest,
+    public List<Dict> listMyDict(DictQueryRequest dictQueryRequest,
                                                HttpServletRequest request) {
-        if (dictQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+
+        BusinessException.throwIf(dictQueryRequest == null,HttpCode.PARAMS_ERROR);
         // 先查询所有审核通过的
         dictQueryRequest.setReviewStatus(ReviewStatusEnum.PASS.getValue());
         Dict dictQuery = new Dict();
@@ -202,9 +191,9 @@ public class DictController {
             // 未登录
         }
         // 根据 id 去重
-        List<Dict> resultList = dictList.stream().collect(Collectors.collectingAndThen(
+        return dictList.stream().collect(Collectors.collectingAndThen(
                 Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(Dict::getId))), ArrayList::new));
-        return ResultUtils.success(resultList);
+
     }
 
     /**
@@ -215,21 +204,19 @@ public class DictController {
      * @return
      */
     @GetMapping("/my/list/page")
-    public BaseResponse<Page<Dict>> listMyDictByPage(DictQueryRequest dictQueryRequest,
+    public Page<Dict> listMyDictByPage(DictQueryRequest dictQueryRequest,
                                                      HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         long current = dictQueryRequest.getCurrent();
         long size = dictQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+        BusinessException.throwIf(size>20,HttpCode.PARAMS_ERROR);
         QueryWrapper<Dict> queryWrapper = getQueryWrapper(dictQueryRequest);
-        queryWrapper.eq("userId", loginUser.getId())
+        queryWrapper.eq("user_id", loginUser.getId())
                 .or()
-                .eq("reviewStatus", ReviewStatusEnum.PASS.getValue());
-        Page<Dict> dictPage = dictService.page(new Page<>(current, size), queryWrapper);
-        return ResultUtils.success(dictPage);
+                .eq("review_status", ReviewStatusEnum.PASS.getValue());
+        return dictService.page(new Page<>(current, size), queryWrapper);
+
     }
 
     /**
@@ -240,22 +227,18 @@ public class DictController {
      * @return
      */
     @GetMapping("/my/add/list/page")
-    public BaseResponse<Page<Dict>> listMyAddDictByPage(DictQueryRequest dictQueryRequest,
+    public Page<Dict> listMyAddDictByPage(DictQueryRequest dictQueryRequest,
                                                         HttpServletRequest request) {
-        if (dictQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+       BusinessException.throwIf(dictQueryRequest == null,HttpCode.PARAMS_ERROR);
         User loginUser = userService.getLoginUser(request);
         dictQueryRequest.setUserId(loginUser.getId());
         long current = dictQueryRequest.getCurrent();
         long size = dictQueryRequest.getPageSize();
         // 限制爬虫
-        if (size > 20) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        Page<Dict> dictPage = dictService.page(new Page<>(current, size),
+        BusinessException.throwIf(size>20,HttpCode.PARAMS_ERROR);
+       return dictService.page(new Page<>(current, size),
                 getQueryWrapper(dictQueryRequest));
-        return ResultUtils.success(dictPage);
+
     }
 
 
@@ -267,14 +250,9 @@ public class DictController {
      */
     //生成的sql表就是只有id,data两个字段，这个接口是用来生成用户自己生成的字段随机内容
     @PostMapping("/generate/sql")
-    public BaseResponse<GenerateVO> generateCreateSql(@RequestBody long id) {
-        if(id<=0){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public GenerateVO generateCreateSql(@RequestBody @Positive(message = "id不合法") long id) {
         Dict byId = dictService.getById(id);
-        if(byId==null){
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
-        }
+        BusinessException.throwIf(byId==null,HttpCode.NOT_FOUND_ERROR);
         String name = byId.getName();
         TableSchema tableSchema=new TableSchema();
         tableSchema.setTableName("dict");
@@ -296,7 +274,7 @@ public class DictController {
         fieldList.add(idField);
         fieldList.add(dataField);
         tableSchema.setFieldList(fieldList);
-        return ResultUtils.success(GeneratorFacade.generateAll(tableSchema));
+        return GeneratorFacade.generateAll(tableSchema);
 
     }
 
@@ -308,9 +286,8 @@ public class DictController {
      * @return
      */
     private QueryWrapper<Dict> getQueryWrapper(DictQueryRequest dictQueryRequest) {
-        if (dictQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
-        }
+
+        BusinessException.throwIf(dictQueryRequest == null,HttpCode.PARAMS_ERROR,"请求参数为空");
         Dict dictQuery = new Dict();
         BeanUtils.copyProperties(dictQueryRequest, dictQuery);
         String sortField = dictQueryRequest.getSortField();

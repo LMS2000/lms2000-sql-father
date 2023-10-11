@@ -3,7 +3,6 @@ package com.lms.sqlfather.constant;
 /**
  * 通用常量
  *
- * @author https://github.com/liyupi
  */
 public interface CommonConstant {
 

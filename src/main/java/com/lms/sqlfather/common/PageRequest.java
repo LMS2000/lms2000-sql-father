@@ -1,12 +1,12 @@
 package com.lms.sqlfather.common;
 
+
 import com.lms.sqlfather.constant.CommonConstant;
 import lombok.Data;
 
 /**
  * 分页请求
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class PageRequest {

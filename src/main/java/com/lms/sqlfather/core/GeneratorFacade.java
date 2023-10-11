@@ -16,8 +16,6 @@ import java.util.Map;
 /**
  * 集中数据生成器
  * 门面模式，统一生成
- *
- * @author https://github.com/liyupi
  */
 @Component
 @Slf4j

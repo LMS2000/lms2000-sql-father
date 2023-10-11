@@ -1,13 +1,11 @@
 package com.lms.sqlfather.common;
 
-import lombok.Data;
-
 import java.io.Serializable;
+import lombok.Data;
 
 /**
  * 删除请求
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class DeleteRequest implements Serializable {

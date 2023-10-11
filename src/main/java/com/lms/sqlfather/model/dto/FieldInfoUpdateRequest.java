@@ -6,8 +6,6 @@ import java.io.Serializable;
 
 /**
  * 更新请求
- *
- * @author https://github.com/liyupi
  */
 @Data
 public class FieldInfoUpdateRequest implements Serializable {

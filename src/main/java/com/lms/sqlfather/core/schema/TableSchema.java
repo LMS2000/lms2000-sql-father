@@ -7,7 +7,6 @@ import java.util.List;
 /**
  * 表概要
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class TableSchema {

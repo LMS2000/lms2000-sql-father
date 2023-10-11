@@ -1,8 +1,7 @@
 package com.lms.sqlfather.controller;
 
-import com.lms.sqlfather.common.BaseResponse;
-import com.lms.sqlfather.common.ErrorCode;
-import com.lms.sqlfather.common.ResultUtils;
+
+import com.lms.result.EnableResponseAdvice;
 import com.lms.sqlfather.core.GeneratorFacade;
 import com.lms.sqlfather.core.model.vo.GenerateVO;
 import com.lms.sqlfather.core.schema.TableSchema;
@@ -18,19 +17,19 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/sql")
+@EnableResponseAdvice
 public class SqlController {
 
     @PostMapping("/generate/schema")
-    public BaseResponse<GenerateVO> generateBySchema(@RequestBody TableSchema tableSchema) {
-        return ResultUtils.success(GeneratorFacade.generateAll(tableSchema));
+    public GenerateVO generateBySchema(@RequestBody TableSchema tableSchema) {
+        return GeneratorFacade.generateAll(tableSchema);
     }
 
     @PostMapping("/get/schema/auto")
-    public BaseResponse<TableSchema> getSchemaByAuto(@RequestBody GenerateByAutoRequest autoRequest) {
-        if (autoRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
-        return ResultUtils.success(TableSchemaBuilder.buildFromAuto(autoRequest.getContent()));
+    public TableSchema getSchemaByAuto(@RequestBody GenerateByAutoRequest autoRequest) {
+
+        BusinessException.throwIf(autoRequest == null);
+        return TableSchemaBuilder.buildFromAuto(autoRequest.getContent());
     }
     /**
      * 根据 SQL 获取 schema
@@ -39,17 +38,16 @@ public class SqlController {
      * @return
      */
     @PostMapping("/get/schema/sql")
-    public BaseResponse<TableSchema> getSchemaBySql(@RequestBody GenerateBySqlRequest sqlRequest) {
-        if (sqlRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
+    public TableSchema getSchemaBySql(@RequestBody GenerateBySqlRequest sqlRequest) {
+
+        BusinessException.throwIf(sqlRequest == null);
         // 获取 tableSchema
-        return ResultUtils.success(TableSchemaBuilder.buildFromSql(sqlRequest.getSql()));
+        return TableSchemaBuilder.buildFromSql(sqlRequest.getSql());
     }
 
     @PostMapping("/get/schema/excel")
-    public BaseResponse<TableSchema> getSchemaByExcel(MultipartFile file) {
-        return ResultUtils.success(TableSchemaBuilder.buildFromExcel(file));
+    public TableSchema getSchemaByExcel(MultipartFile file) {
+        return TableSchemaBuilder.buildFromExcel(file);
     }
 
 

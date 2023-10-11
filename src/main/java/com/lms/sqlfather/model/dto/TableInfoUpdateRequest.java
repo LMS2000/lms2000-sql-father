@@ -7,7 +7,6 @@ import java.io.Serializable;
 /**
  * 更新请求
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class TableInfoUpdateRequest implements Serializable {

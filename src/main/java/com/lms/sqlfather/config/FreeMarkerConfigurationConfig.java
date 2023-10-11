@@ -2,7 +2,10 @@ package com.lms.sqlfather.config;
 
 import freemarker.template.Configuration;
 import freemarker.template.TemplateExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.ResourceLoader;
+import org.springframework.ui.freemarker.SpringTemplateLoader;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,20 +13,22 @@ import java.io.IOException;
 /**
  * FreeMarker 模板配置
  *
- * @author https://github.com/liyupi
  */
 @org.springframework.context.annotation.Configuration
 public class FreeMarkerConfigurationConfig {
-
+    private static freemarker.template.Configuration cfg;
+    @Autowired
+    private ResourceLoader resourceLoader;
     @Bean
     public Configuration configuration() throws IOException {
-        Configuration cfg = new Configuration(Configuration.VERSION_2_3_29);
-        cfg.setDirectoryForTemplateLoading(new File("src/main/resources/templates"));
-        cfg.setDefaultEncoding("UTF-8");
-        cfg.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
-        cfg.setLogTemplateExceptions(false);
-        cfg.setWrapUncheckedExceptions(true);
-        cfg.setFallbackOnNullLoopVariable(false);
+        try{
+            SpringTemplateLoader templateLoader = new SpringTemplateLoader(resourceLoader, "classpath:templates");
+            cfg = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_23);
+            cfg.setTemplateLoader(templateLoader);
+            cfg.setDefaultEncoding("UTF-8");
+        }catch (Exception e){
+            e.printStackTrace();
+        }
         return cfg;
     }
 }

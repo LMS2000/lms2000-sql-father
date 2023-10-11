@@ -7,7 +7,6 @@ import java.io.Serializable;
 /**
  * 智能生成请求体
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class GenerateByAutoRequest implements Serializable {

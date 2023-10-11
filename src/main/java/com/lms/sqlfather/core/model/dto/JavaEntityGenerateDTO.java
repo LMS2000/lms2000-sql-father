@@ -7,7 +7,6 @@ import java.util.List;
 /**
  * Java 实体生成封装类
  *
- * @author https://github.com/liyupi
  */
 @Data
 public class JavaEntityGenerateDTO {

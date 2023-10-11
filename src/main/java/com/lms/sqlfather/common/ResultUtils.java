@@ -1,9 +1,10 @@
 package com.lms.sqlfather.common;
 
+import com.lms.contants.HttpCode;
+
 /**
  * 返回工具类
  *
- * @author https://github.com/liyupi
  */
 public class ResultUtils {
 
@@ -24,7 +25,7 @@ public class ResultUtils {
      * @param errorCode
      * @return
      */
-    public static BaseResponse error(ErrorCode errorCode) {
+    public static BaseResponse error(HttpCode errorCode) {
         return new BaseResponse<>(errorCode);
     }
 
@@ -45,7 +46,7 @@ public class ResultUtils {
      * @param errorCode
      * @return
      */
-    public static BaseResponse error(ErrorCode errorCode, String message) {
+    public static BaseResponse error(HttpCode errorCode, String message) {
         return new BaseResponse(errorCode.getCode(), null, message);
     }
 }
