@@ -36,6 +36,10 @@ public class TableSchema {
      */
     private List<Field> fieldList;
 
+
+
+
+
     /**
      * 列信息
      */
@@ -90,6 +94,18 @@ public class TableSchema {
          * 附加条件
          */
         private String onUpdate;
+
+
+
+        /**
+         * 外键
+         */
+        private String foreignKey;
+
+        /**
+         * 关联表名
+         */
+        private String foreignTableName;
     }
 
 }

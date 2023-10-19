@@ -17,6 +17,8 @@ public enum MockTypeEnum {
     FIXED("固定"),
     RANDOM("随机"),
     RULE("规则"),
+
+    related("关联"),
     DICT("词库");
 
     private final String value;

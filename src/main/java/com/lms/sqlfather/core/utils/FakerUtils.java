@@ -43,6 +43,32 @@ public class FakerUtils {
                 return String.valueOf(RandomUtils.nextFloat(0, 100000));
             case UNIVERSITY:
                 return ZH_FAKER.university().name();
+            case IDENTITY:
+                return ZH_FAKER.idNumber().validZhCNSsn();
+            case NICKNAME:
+                return ZH_FAKER.name().username();
+//            case BANK_CARD:
+//                return ZH_FAKER.idNumber().b
+            case CONTACT_ADDRESS:
+                return ZH_FAKER.address().fullAddress();
+            case LONGITUDE:
+                return ZH_FAKER.address().longitude();
+            case LATITUDE:
+                return ZH_FAKER.address().latitude();
+            case EDUCATION_BACKGROUND:
+                return ZH_FAKER.options().option("小学","初中","中职","高中","专科","本科","研究生");
+            case MAJOR:
+                return ZH_FAKER.educator().course();
+            case COMPANY:
+                return ZH_FAKER.company().name();
+            case LICENSE_PLATE_NUMBER:
+                return ZH_FAKER.vehicle().vin();
+            case NATION:
+                return ZH_FAKER.demographic().race();
+            case BOOLEAN:
+                return String.valueOf(ZH_FAKER.random().nextInt(0,1));
+            case PERCENT:
+                return String.valueOf(ZH_FAKER.random().nextDouble());
             case DATE:
                 return EN_FAKER.date()
                         .between(Timestamp.valueOf("2022-01-01 00:00:00"), Timestamp.valueOf("2023-01-01 00:00:00"))

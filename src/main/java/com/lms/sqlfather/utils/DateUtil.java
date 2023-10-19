@@ -1,4 +1,4 @@
-package com.lms.sqlfather.core.utils;
+package com.lms.sqlfather.utils;
 
 
 

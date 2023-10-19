@@ -36,6 +36,8 @@ public class GeneratorFacade {
         int mockNum = tableSchema.getMockNum();
         // 生成模拟数据
         List<Map<String, Object>> dataList = DataBuilder.generateData(tableSchema, mockNum);
+
+
         // 生成插入 SQL
         String insertSql = sqlBuilder.buildInsertSql(tableSchema, dataList);
         // 生成数据 json
@@ -59,6 +61,48 @@ public class GeneratorFacade {
         return generateVO;
     }
 
+
+
+    public static GenerateVO generateAllData(List<TableSchema> tableSchemas) {
+        for (TableSchema tableSchema : tableSchemas) {
+            validSchema(tableSchema);
+        }
+        SqlBuilder sqlBuilder = new SqlBuilder();
+        //生成伪造数据
+        Map<String, List<Map<String, Object>>> dataMap = DataBuilder.generateAllData(tableSchemas);
+
+
+
+        // 生成建表 SQL  java实体类  前端ts 对象
+        StringBuilder stringBuilderForCreateSql = new StringBuilder();
+        StringBuilder stringBuilderForJavaEntity = new StringBuilder();
+        StringBuilder stringBuilderForTypescriptTypeCode = new StringBuilder();
+        for (TableSchema tableSchema : tableSchemas) {
+            stringBuilderForCreateSql.append(sqlBuilder.buildCreateTableSql(tableSchema)).append("\n");
+            stringBuilderForJavaEntity.append(JavaCodeBuilder.buildJavaEntityCode(tableSchema)).append("\n");
+            stringBuilderForTypescriptTypeCode.append(FrontendCodeBuilder.buildTypeScriptTypeCode(tableSchema)).append("\n");
+        }
+        String createSqls = stringBuilderForCreateSql.toString();
+        String javaEntitys = stringBuilderForJavaEntity.toString();
+        String typscriptTypeCodes = stringBuilderForTypescriptTypeCode.toString();
+
+
+        //insert 语句生成
+        String insertSqls = sqlBuilder.buildInsertSql(tableSchemas, dataMap);
+        // 封装返回
+        GenerateVO generateVO = new GenerateVO();
+//        generateVO.setTableSchema(tableSchema);
+        generateVO.setCreateSql(createSqls);
+//        generateVO.setDataList(dataList);
+        generateVO.setInsertSql(insertSqls);
+//        generateVO.setDataJson(dataJson);
+        generateVO.setJavaEntityCode(javaEntitys);
+//        generateVO.setJavaObjectCode(javaObjectCode);
+        generateVO.setTypescriptTypeCode(typscriptTypeCodes);
+        return generateVO;
+
+
+    }
     /**
      * 验证 schema
      *

@@ -3,19 +3,20 @@ package com.lms.sqlfather.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.plugins.pagination.PageDTO;
-import com.google.gson.internal.$Gson$Preconditions;
 import com.lms.contants.HttpCode;
+import com.lms.redis.RedisCache;
 import com.lms.result.EnableResponseAdvice;
 import com.lms.result.ResultData;
 import com.lms.sqlfather.annotation.AuthCheck;
 import com.lms.sqlfather.common.DeleteRequest;
 import com.lms.sqlfather.constant.UserConstant;
-import com.lms.sqlfather.core.utils.CreateImageCode;
+import com.lms.sqlfather.utils.CreateImageCode;
 import com.lms.sqlfather.exception.BusinessException;
 import com.lms.sqlfather.model.dto.*;
 import com.lms.sqlfather.model.entity.User;
 import com.lms.sqlfather.model.vo.UserVO;
 import com.lms.sqlfather.service.UserService;
+import com.lms.sqlfather.utils.MybatisUtils;
 import io.swagger.annotations.ApiOperation;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
@@ -29,6 +30,8 @@ import javax.servlet.http.HttpSession;
 import javax.validation.constraints.Positive;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController
@@ -40,6 +43,53 @@ public class UserController {
     private UserService userService;
 
 
+    @Resource
+    private RedisCache redisCache;
+
+
+    /**
+     * 判断找回密码的邮箱验证码是否正确,如果在数据库种找不到的话就返回false
+     * @param userEmailCodeRequest
+     * @return
+     */
+    @PostMapping("/valid/findback")
+    public ResultData checkEmailCodeForFindBack(@RequestBody UserEmailCodeRequest userEmailCodeRequest){
+        String code = userEmailCodeRequest.getEmailCode();
+        String email = userEmailCodeRequest.getEmail();
+        ResultData resultData=ResultData.success();
+            String emailCode = redisCache.getCacheObject(UserConstant.EMAIIL_HEADER+1+"_"+email);
+            boolean flag = emailCode.equals(code);
+            if(flag){
+                boolean existCheck = MybatisUtils.existCheck(userService, Map.of("email", email));
+               if(!existCheck){
+                   resultData.put("code",HttpCode.PARAMS_ERROR);
+                   resultData.put("msg","该邮箱没有注册用户");
+               }
+            }
+            return resultData;
+    }
+
+
+    /**
+     * 用邮箱来设置密码
+     * @param userFindBackPasswordRequest
+     * @return
+     */
+    @PostMapping("/update/password")
+    public Boolean findBackNewPassword(@RequestBody UserFindBackPasswordRequest userFindBackPasswordRequest){
+        String checkPassword = userFindBackPasswordRequest.getCheckPassword();
+        String email = userFindBackPasswordRequest.getEmail();
+        String userPassword = userFindBackPasswordRequest.getUserPassword();
+        String emailCode = userFindBackPasswordRequest.getEmailCode();
+        try{
+            String code = redisCache.getCacheObject(UserConstant.EMAIIL_HEADER + "1_" + email);
+            BusinessException.throwIf(!emailCode.equals(code),HttpCode.PARAMS_ERROR,"验证码不符");
+
+            return userService.resetPasswordForFindBack(email,userPassword,checkPassword);
+        }finally {
+           redisCache.deleteObject(UserConstant.EMAIIL_HEADER + "1_" + email);
+        }
+    }
     /**
      * 验证码
      *  0 为注册    1 为邮箱验证
@@ -69,6 +119,8 @@ public class UserController {
 
 
 
+
+
     /**
      * type 0 为注册 1 为找回密码
      * @param session
@@ -79,12 +131,20 @@ public class UserController {
         String code = sendEmailRequest.getCode();
         String email = sendEmailRequest.getEmail();
         Integer type = sendEmailRequest.getType();
+
+
         try {
             if (!code.equalsIgnoreCase((String) session.getAttribute(UserConstant.CHECK_CODE_KEY_EMAIL))) {
                 throw new BusinessException(HttpCode.PARAMS_ERROR,"图片验证码不正确");
             }
+            //检查redis中是否有相同的邮箱
+            boolean hasCode = redisCache.getCacheObject(UserConstant.EMAIIL_HEADER +
+                    type + "_" + email)!=null;
+            BusinessException.throwIf(hasCode,HttpCode.PARAMS_ERROR,"重复发送邮件");
             String emailCode = userService.sendEmail(email, type);
-            session.setAttribute(UserConstant.EMAIIL_HEADER+type,emailCode);
+            //设置15分钟的失效时间
+            redisCache.setCacheObject(UserConstant.EMAIIL_HEADER+type+"_"+email,emailCode,
+                    15, TimeUnit.MINUTES);
             return true;
         } finally {
             session.removeAttribute(UserConstant.CHECK_CODE_KEY_EMAIL);
@@ -108,21 +168,22 @@ public class UserController {
         try{
 
             BusinessException.throwIf(userRegisterRequest == null);
-            String code = (String) session.getAttribute(UserConstant.EMAIIL_HEADER);
-            BusinessException.throwIf(org.springframework.util.StringUtils.isEmpty(code)||!code.equals(userRegisterRequest.getEmailCode()),
-                    HttpCode.PARAMS_ERROR,"邮箱验证码错误");
             String userName = userRegisterRequest.getUserName();
             String userAccount = userRegisterRequest.getUserAccount();
             String userPassword = userRegisterRequest.getUserPassword();
             String checkPassword = userRegisterRequest.getCheckPassword();
             String email = userRegisterRequest.getEmail();
+            String code = redisCache.getCacheObject(UserConstant.EMAIIL_HEADER+0+"_"+email);
+            BusinessException.throwIf(org.springframework.util.StringUtils.isEmpty(code)||!code.equals(userRegisterRequest.getEmailCode()),
+                    HttpCode.PARAMS_ERROR,"邮箱验证码错误");
+
             if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
                 return null;
             }
             return userService.userRegister(userName, userAccount, userPassword, checkPassword,email, UserConstant.DEFAULT_ROLE);
 
         }finally {
-            session.removeAttribute(UserConstant.EMAIIL_HEADER);
+            redisCache.deleteObject(UserConstant.EMAIIL_HEADER+0+"_"+session.getId());
         }
 
 

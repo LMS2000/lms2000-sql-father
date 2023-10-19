@@ -1,6 +1,7 @@
 package com.lms.sqlfather.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lms.contants.HttpCode;
 import com.lms.sqlfather.config.AppConfig;
@@ -8,6 +9,7 @@ import com.lms.sqlfather.constant.CommonConstants;
 import com.lms.sqlfather.exception.BusinessException;
 import com.lms.sqlfather.mapper.UserMapper;
 import com.lms.sqlfather.model.dto.SysSettingsRequest;
+import com.lms.sqlfather.model.dto.UserFindBackPasswordRequest;
 import com.lms.sqlfather.model.entity.User;
 import com.lms.sqlfather.service.UserService;
 import com.lms.sqlfather.utils.MybatisUtils;
@@ -100,8 +102,10 @@ public class UserServiceImpl  extends ServiceImpl<UserMapper, User> implements U
         String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
         // 查询用户是否存在
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_account", userAccount);
-        queryWrapper.eq("user_password", encryptPassword);
+
+        queryWrapper.nested(i -> i.eq("user_account", userAccount)
+                        .or().eq("email", userAccount))
+                .eq("user_password", encryptPassword);
         User user = userMapper.selectOne(queryWrapper);
         // 用户不存在
         if (user == null) {
@@ -150,13 +154,28 @@ public class UserServiceImpl  extends ServiceImpl<UserMapper, User> implements U
     public String sendEmail(String email, Integer type) {
         //如果是注册，校验邮箱是否已存在
         if (Objects.equals(type, CommonConstants.ZERO)) {
-            BusinessException.throwIf(MybatisUtils.existCheck(this, Map.of("email",email)));
+            BusinessException.throwIf(MybatisUtils.existCheck(this, Map.of("email",email)),HttpCode.PARAMS_ERROR,
+                    "邮箱已占用");
         }
         //随机的邮箱验证码
         String code = StringTools.getRandomNumber(CommonConstants.LENGTH_5);
         sendEmailCode(email, code);
         return code;
     }
+
+    @Override
+    public Boolean resetPasswordForFindBack(String email ,String password,String checkPassword) {
+
+        User user = this.getOne(new QueryWrapper<User>().eq("email", email));
+
+        BusinessException.throwIf(user==null);
+
+        BusinessException.throwIf(!password.equals(checkPassword),HttpCode.PARAMS_ERROR,"两次密码不一致");
+
+        String encodePassword=DigestUtils.md5DigestAsHex((SALT + password).getBytes());
+       return this.update(new UpdateWrapper<User>().set("user_password",encodePassword));
+    }
+
     private void sendEmailCode(String toEmail, String code) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();

@@ -15,14 +15,27 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/sql")
 @EnableResponseAdvice
 public class SqlController {
 
+
+
+
+
+
     @PostMapping("/generate/schema")
     public GenerateVO generateBySchema(@RequestBody TableSchema tableSchema) {
         return GeneratorFacade.generateAll(tableSchema);
+    }
+
+    //多张表生成需要传递list<TableSchema>
+    @PostMapping("/generate/schemas")
+    public GenerateVO generateBySchema(@RequestBody List<TableSchema> tableSchemas){
+        return GeneratorFacade.generateAllData(tableSchemas);
     }
 
     @PostMapping("/get/schema/auto")

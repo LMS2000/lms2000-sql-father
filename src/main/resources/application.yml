@@ -18,15 +18,15 @@ spring:
     password: 123456
   redis:
     port: 6379
-    host: xxxx
-    password: xxxxx
+    host: xxx
+    password: xxxx
     database: 0
 
   mail:
     host: smtp.qq.com
     port: 465
-    username: 956287248@qq.com
-    password: vfrgrvvkvdkibfgj
+    username: xxx
+    password: xxx
     default-encoding: UTF-8
     properties:
       mail:
@@ -63,3 +63,6 @@ swagger:
   version: 1.0.0
   description: sql生成工具
 
+lms:
+  global:
+    enableRedis: true

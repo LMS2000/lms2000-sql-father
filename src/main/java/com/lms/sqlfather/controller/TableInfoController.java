@@ -68,7 +68,6 @@ public class TableInfoController {
         TableInfo byId = tableInfoService.getById(deleteRequest.getId());
         BusinessException.throwIf(byId == null);
         User loginUser = userService.getLoginUser(request);
-
         BusinessException.throwIf(!loginUser.getId().equals(byId.getUserId()) && !userService.isAdmin(request),
                 HttpCode.NO_AUTH_ERROR);
       return tableInfoService.removeById(byId.getId());

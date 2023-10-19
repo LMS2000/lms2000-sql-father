@@ -46,10 +46,11 @@ public class SqlBuilder {
         if (StringUtils.isNotBlank(dbName)) {
             tableName = String.format("%s.%s", dbName, tableName);
         }
-        //封装表前表后注释
-        String prefixComment = String.format("--%s", tableSchema.getTableComment());
 
-        String suffixComment = String.format("comment %s", tableSchema.getTableComment());
+        //封装表前表后注释
+        String prefixComment = StringUtils.isNotBlank(tableSchema.getTableComment())? String.format("--%s", tableSchema.getTableComment()):"";
+
+        String suffixComment =StringUtils.isNotBlank(tableSchema.getTableComment())? String.format("comment %s", tableSchema.getTableComment()):"";
 
         List<Field> fieldList = tableSchema.getFieldList();
         StringBuilder stringBuilder = new StringBuilder();
@@ -62,8 +63,10 @@ public class SqlBuilder {
             }
         }
         String fieldInfo = stringBuilder.toString();
+
         //封装建表sql模板
         String result = String.format(template, prefixComment, tableName, fieldInfo, suffixComment);
+
         return result;
 
     }
@@ -124,7 +127,12 @@ public class SqlBuilder {
         String dbName = tableSchema.getDbName();
         String tableName = sqlDialect.wrapTableName(tableSchema.getTableName());
         if(StringUtils.isNotBlank(tableName)){
-            tableName=String.format("%s.%s",dbName,tableName);
+            if(StringUtils.isNotBlank(dbName)){
+                tableName=String.format("%s.%s",dbName,tableName);
+            }else{
+                tableName=String.format("%s",tableName);
+            }
+
         }
         //获取字段列表
         List<Field> fieldList = tableSchema.getFieldList();
@@ -151,6 +159,18 @@ public class SqlBuilder {
             if(i!=total-1){
                 stringBuilder.append("\n");
             }
+        }
+        return stringBuilder.toString();
+    }
+
+
+    public String buildInsertSql(List<TableSchema> tableSchemas, Map<String,List<Map<String,Object>>> dataMap) {
+        StringBuilder stringBuilder=new StringBuilder();
+        for (TableSchema tableSchema : tableSchemas) {
+
+            List<Map<String, Object>> dataList = dataMap.get(tableSchema.getTableName());
+            String insertSql = buildInsertSql(tableSchema, dataList);
+            stringBuilder.append(insertSql).append("\n");
         }
         return stringBuilder.toString();
     }

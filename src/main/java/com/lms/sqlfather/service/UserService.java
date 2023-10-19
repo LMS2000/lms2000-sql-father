@@ -1,6 +1,7 @@
 package com.lms.sqlfather.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.lms.sqlfather.model.dto.UserFindBackPasswordRequest;
 import com.lms.sqlfather.model.entity.User;
 
 import javax.servlet.http.HttpServletRequest;
@@ -60,4 +61,6 @@ public interface UserService extends IService<User> {
     String sendEmail(String email, Integer type);
 
 
+
+    Boolean resetPasswordForFindBack(String email ,String password,String checkPassword);
 }
